@@ -2,9 +2,11 @@ const PENDING = 0;
 const FULFILLED = 1;
 const REJECTED = 2;
 
-const nextTick = (function() {
+export const nextTick = (function() {
   const callbacks = [];
   let pending = false;
+  let timeFunc = setTimeout;
+
   function callbacksHandler() {
     pending = false;
     const copies = callbacks.slice(0);
@@ -18,20 +20,19 @@ const nextTick = (function() {
     callbacks.push(func);
     if (!pending) {
       pending = true;
-      setTimeout(callbacksHandler, 0);
+      timeFunc(callbacksHandler, 0);
     }
   }
 })();
 
 export default function Promise(exectutor) {
-  let start = Date.now();
   this.states = PENDING;
   this.subjections = [];
   this.value = null;
   let promise = this;
   try {
     exectutor(function(x) {
-      promise.reslove(x);
+      promise.resolve(x);
     }, function(e) {
       promise.reject(e);
     });
@@ -43,18 +44,19 @@ export default function Promise(exectutor) {
 
 Promise.prototype = {
   constructor: Promise,
-  reslove: function(x) {
+  resolve: function(x) {
     if (this.states !== PENDING) return;
-    if (x === this) throw new TypeError('Promise settled with itself.');
+    if (x === this) throw new Error('Promise settled with itself.');
     let called = false;
     if (called) return;
+    let promise = this;
     let then = x && x['then'];
-    if (typeof x === 'object' && x !== null && typeof then === 'function') { // reslove another promise
+    if (typeof x === 'object' && x !== null && typeof then === 'function') { // resolve another promise
       try {
         then.call(x, function(x) {
-          this.reslove(x);
+          promise.resolve(x);
         }, function(e) {
-          this.reject(e);
+          promise.reject(e);
         });
         called = true;
       } catch (e) {
@@ -62,6 +64,7 @@ Promise.prototype = {
           this.reject(e);
         }
       }
+      return;
     }
     
     this.states = FULFILLED;
@@ -71,31 +74,29 @@ Promise.prototype = {
 
   reject: function(e) {
     if (this.states !== PENDING) return;
-    if (e === this) throw new TypeError('Promise settled with itself.');
-    let called = false;
-    if (called) return;
-    called = true;
+    if (e === this) throw new Error('Promise settled with itself.');
     this.states = REJECTED;
     this.value = e;
     this.notify();
   },
 
   notify: function() {
-    if (this.states === PENDING) return;
+    
     const promise = this;
     nextTick(function() {
+      if (promise.states === PENDING) return; 
       while (promise.subjections.length) {
         let subjection = promise.subjections.shift();
         let onFulfilled = subjection[0];
         let onRejected = subjection[1];
-        let reslove = subjection[2];
+        let resolve = subjection[2];
         let reject = subjection[3];
         try {
           if (promise.states === FULFILLED) {
             if (typeof onFulfilled === 'function') {
-              reslove(onFulfilled.call(undefined, promise.value));
+              resolve(onFulfilled.call(undefined, promise.value));
             } else {
-              reslove(promise.value);
+              resolve(promise.value);
             }
           }
           if (promise.states === REJECTED) {
@@ -109,13 +110,14 @@ Promise.prototype = {
           reject(e);
         }
       }
+      
     });
   },
 
   then: function(onFulfilled, onRejected) {
     const prePromise = this;
-    return new Promise(function(reslove, reject) {
-      prePromise.subjections.push([onFulfilled, onRejected, reslove, reject]);
+    return new Promise(function(resolve, reject) {
+      prePromise.subjections.push([onFulfilled, onRejected, resolve, reject]);
       prePromise.notify();
     });
   },
@@ -126,41 +128,43 @@ Promise.prototype = {
 }
 
 
-Promise.reslove = function(x) {
-  return new Promise(function(reslove, reject) {
-    reslove(x);
+Promise.resolve = function(x) {
+  return new Promise(function(resolve, reject) {
+    resolve(x);
   })
 };
 
 Promise.reject = function(e) {
-  return new Promise(function(reslove, reject) {
+  return new Promise(function(resolve, reject) {
     reject(e);
   })
 };
 
 Promise.all = function(iterable) {
-  return new Promise(function(reslove, reject) {
+  return new Promise(function(resolve, reject) {
     const result  = [];
     let count = 0;
-    function reslover(i) {
+    let l = iterable.length;
+    if (l === 0) return resolve(result);
+    function resolver() {
       return function(x) {
-        result[i] = x;
+        result.push(x);
         count += 1;
-        if (count === iterable.length) {
-          reslove(result);
+        if (count === l) {
+          resolve(result);
         }
       };
     }
-    for (let i = 0, l = iterable.length; i < l; i++) {
-      Promise.reslove(iterable[i]).then(reslover(i), reject);
+    for (let i = 0; i < l; i++) {
+      Promise.resolve(iterable[i]).then(resolver(), reject);
     }
   });
 };
 
 Promise.race = function(iterable) {
-  return new Promise(function(reslove, reject) {
+  return new Promise(function(resolve, reject) {
     for (let i = 0, l = iterable.length; i < l; i++) {
-      Promise.reslove(iterable[i]).then(reslove, reject);
+      Promise.resolve(iterable[i]).then(resolve, reject);
     }
   });
 };
