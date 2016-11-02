@@ -1,5 +1,5 @@
 {
-  "name": "promise",
+  "name": "ahbing-promise",
   "version": "1.0.0",
   "description": "参考[Promise](https://promisesaplus.com/)标准",
   "main": "index.js",
