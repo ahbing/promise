@@ -1,23 +1,11 @@
 import chai from 'chai';
-import Promise, { nextTick } from '../index';
+import Promise from '../index';
 import sinon from 'sinon';
 let expect = chai.expect;
 const PENDING = 0;
 const FULFILLED = 1;
 const REJECTED = 2;
 let noop = function() {};
-
-describe('# nextTick', function() {
-  it('should call func nextTick', function(done) {
-    let spy = sinon.spy();
-    nextTick(spy);
-    expect(spy.called).to.be.false;
-    setTimeout(function() {
-      expect(spy.called).to.be.true;
-      done();
-    }, 0);
-  })
-});
 
 describe('#Promise', function() {
   it('create a new Promise', function() {

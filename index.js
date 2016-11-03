@@ -2,7 +2,7 @@ const PENDING = 0;
 const FULFILLED = 1;
 const REJECTED = 2;
 
-export const nextTick = (function() {
+const nextTick = (function() {
   const callbacks = [];
   let pending = false;
   let timeFunc = setTimeout;
@@ -25,7 +25,12 @@ export const nextTick = (function() {
   }
 })();
 
-export default function Promise(exectutor) {
+/**
+* expose 
+*/
+module.exports = Promise['default'] = Promise;
+
+function Promise(exectutor) {
   this.states = PENDING;
   this.subjections = [];
   this.value = null;
